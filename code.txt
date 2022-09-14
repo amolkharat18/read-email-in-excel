@@ -1,0 +1,109 @@
+Option Explicit
+
+Public Sub getData()
+    Dim oApp As Outlook.Application
+    Dim oNS As Namespace
+    Dim inbox As Folder
+    Dim data_sheet As Worksheet
+    Dim inboxItem As Variant
+    Dim inboxMailItem As MailItem
+    Dim rowIndex As Integer
+    Dim body() As String
+    Dim line As Variant
+    
+    'participant details
+    Dim pName As String
+    Dim pEmail As String
+    Dim pID As String
+    Dim pCertName As String
+    Dim pScore As String
+    Dim pDate As String
+    Dim pAttempt As String
+    
+    Set oApp = New Outlook.Application
+    Set oNS = oApp.GetNamespace("MAPI")
+    Set inbox = oNS.GetDefaultFolder(olFolderInbox)
+    Set data_sheet = Sheets("Data")
+    
+    data_sheet.Cells.Clear
+    'set the header
+    data_sheet.Cells(1, 1) = "Sr#"
+    data_sheet.Cells(1, 2) = "Name"
+    data_sheet.Cells(1, 3) = "Email"
+    data_sheet.Cells(1, 4) = "Employee ID"
+    data_sheet.Cells(1, 5) = "Certification Name"
+    data_sheet.Cells(1, 6) = "Score"
+    data_sheet.Cells(1, 7) = "Date"
+    data_sheet.Cells(1, 8) = "Attempt"
+    
+    rowIndex = 2
+    
+    'loop through all emails
+    For Each inboxItem In inbox.Items
+        'skip meeting items
+        If TypeName(inboxItem) = "MeetingItem" Or TypeName(inboxItem) = "ReportItem" Then GoTo continueLoop
+        Set inboxMailItem = inboxItem
+        
+        'Debug.Print inboxMailItem.ReceivedTime & " -- " & inboxMailItem.Subject
+        If LCase(Trim(inboxMailItem.Subject)) = "certification details" Then
+            body = Split(inboxMailItem.body, vbNewLine)
+            
+            pName = ""
+            pEmail = ""
+            pID = ""
+            pCertName = ""
+            pScore = ""
+            pDate = ""
+            pAttempt = ""
+            
+            For Each line In body
+                If Len(Trim(line)) > 0 Then
+                    Dim data As String
+                    If InStr(line, ":") <> 0 Then
+                        data = Trim(Split(line, ":")(1))
+                        Select Case UCase(Left(Trim(line), 4))
+                            Case "NAME"
+                                pName = data
+                                
+                            Case "EMAI"
+                                pEmail = Split(data, " ")(0)
+                                
+                            Case "EMPL"
+                                pID = data
+                                
+                            Case "CERT"
+                                pCertName = data
+                                
+                            Case "SCOR"
+                                pScore = data
+                                
+                            Case "DATE"
+                                pDate = data
+                            
+                            Case "ATTE"
+                                pAttempt = data
+                        End Select
+                    End If
+                End If
+            Next line
+            
+            'set data in sheet
+            data_sheet.Cells(rowIndex, 1) = rowIndex - 1
+            data_sheet.Cells(rowIndex, 2) = pName
+            data_sheet.Cells(rowIndex, 3) = pEmail
+            data_sheet.Cells(rowIndex, 4) = pID
+            data_sheet.Cells(rowIndex, 5) = pCertName
+            data_sheet.Cells(rowIndex, 6) = pScore
+            data_sheet.Cells(rowIndex, 7) = pDate
+            data_sheet.Cells(rowIndex, 8) = pAttempt
+            
+            rowIndex = rowIndex + 1
+        End If
+continueLoop:
+    Next inboxItem
+    
+    Set data_sheet = Nothing
+    Set inbox = Nothing
+    Set oNS = Nothing
+    Set oApp = Nothing
+End Sub
